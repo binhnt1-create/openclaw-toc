@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.dev/schemas/agent-bundle.schema.json",
+  "title": "OpenClaw Agent Bundle Manifest",
+  "description": "Schema for portable OpenClaw agent bundle manifests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "type",
+    "setup"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "const": "agent-bundle"
+    },
+    "description": {
+      "type": "string"
+    },
+    "workspaceRoot": {
+      "$ref": "#/$defs/safeRelativePath"
+    },
+    "setup": {
+      "$ref": "#/$defs/setupConfig"
+    },
+    "templates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/templateMapping"
+      }
+    },
+    "dependencies": {
+      "$ref": "#/$defs/dependencyConfig"
+    },
+    "mcp": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/mcpRequirement"
+      }
+    },
+    "install": {
+      "$ref": "#/$defs/installConfig"
+    }
+  },
+  "$defs": {
+    "safeRelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {
+          "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+        }
+      ]
+    },
+    "envVarName": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "setupConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entryCommand",
+        "installerCommand",
+        "skillPath"
+      ],
+      "properties": {
+        "entryCommand": {
+          "type": "string",
+          "minLength": 1
+        },
+        "installerCommand": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skillPath": {
+          "$ref": "#/$defs/safeRelativePath"
+        },
+        "setupDoc": {
+          "$ref": "#/$defs/safeRelativePath"
+        },
+        "verifyDoc": {
+          "$ref": "#/$defs/safeRelativePath"
+        }
+      }
+    },
+    "templateMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "target"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/safeRelativePath"
+        },
+        "target": {
+          "$ref": "#/$defs/safeRelativePath"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "dependencyConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "docs": {
+          "$ref": "#/$defs/safeRelativePath"
+        },
+        "runtime": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "optionalRuntime": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "mcpRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "required"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/envVarName"
+          }
+        }
+      }
+    },
+    "installConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "createFromTemplates": {
+          "type": "boolean"
+        },
+        "runBootstrapIfPresent": {
+          "type": "boolean"
+        },
+        "runVerifyAtEnd": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

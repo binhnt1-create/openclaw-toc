@@ -1,0 +1,10 @@
+{
+  "id": "agent-bundle-installer",
+  "name": "Agent Bundle Installer",
+  "description": "Install portable agent bundles with /agent-add.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

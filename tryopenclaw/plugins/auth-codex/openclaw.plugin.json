@@ -1,0 +1,10 @@
+{
+  "id": "auth-codex",
+  "name": "Auth Codex",
+  "description": "Sign in to OpenAI Codex via OAuth with /auth-codex.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
