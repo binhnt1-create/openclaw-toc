@@ -1,0 +1,54 @@
+{
+  "$schema": "./bundle.schema.json",
+  "schemaVersion": 1,
+  "id": "jira-agent",
+  "name": "Jira Agent",
+  "type": "agent-bundle",
+  "description": "Portable Jira-focused project manager agent for OpenClaw.",
+  "workspaceRoot": ".",
+  "setup": {
+    "entryCommand": "/agent-add \"jira-agent\"",
+    "installerCommand": "openclaw agent add workspace/jira-agent",
+    "skillPath": "skills/first-run-setup/SKILL.md",
+    "setupDoc": "SETUP.md",
+    "verifyDoc": "VERIFY.md"
+  },
+  "templates": [
+    {
+      "source": "USER.template.md",
+      "target": "USER.md",
+      "required": true
+    },
+    {
+      "source": "TOOLS.template.md",
+      "target": "TOOLS.md",
+      "required": true
+    }
+  ],
+  "dependencies": {
+    "docs": "DEPENDENCIES.md",
+    "runtime": [
+      "openclaw"
+    ],
+    "optionalRuntime": [
+      "node"
+    ]
+  },
+  "mcp": [
+    {
+      "id": "jira",
+      "required": true,
+      "purpose": "jira read/write access",
+      "env": [
+        "JIRA_URL",
+        "JIRA_API_MAIL",
+        "JIRA_API_KEY"
+      ]
+    }
+  ],
+  "install": {
+    "createFromTemplates": true,
+    "runBootstrapIfPresent": true,
+    "runVerifyAtEnd": true
+  }
+}
