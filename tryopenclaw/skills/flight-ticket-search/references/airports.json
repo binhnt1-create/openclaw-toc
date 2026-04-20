@@ -1,0 +1,109 @@
+{
+  "vietnam_airports": [
+    {
+      "code": "SGN",
+      "city": "Hồ Chí Minh",
+      "aliases": ["hcm", "tphcm", "sài gòn", "ho chi minh", "hcmc", "sg", "saigon", "tân sơn nhất", "tan son nhat"]
+    },
+    {
+      "code": "HAN",
+      "city": "Hà Nội",
+      "aliases": ["hà nội", "ha noi", "hn", "nội bài", "noi bai"]
+    },
+    {
+      "code": "DAD",
+      "city": "Đà Nẵng",
+      "aliases": ["đà nẵng", "da nang", "dn"]
+    },
+    {
+      "code": "PQC",
+      "city": "Phú Quốc",
+      "aliases": ["phú quốc", "phu quoc", "kiên giang", "kien giang"]
+    },
+    {
+      "code": "CXR",
+      "city": "Nha Trang (Cam Ranh)",
+      "aliases": ["nha trang", "cam ranh", "khánh hòa", "khanh hoa"]
+    },
+    {
+      "code": "HPH",
+      "city": "Hải Phòng",
+      "aliases": ["hải phòng", "hai phong", "hp", "cát bi", "cat bi"]
+    },
+    {
+      "code": "VDO",
+      "city": "Vân Đồn",
+      "aliases": ["vân đồn", "van don", "quảng ninh", "quang ninh"]
+    },
+    {
+      "code": "VII",
+      "city": "Vinh",
+      "aliases": ["vinh", "nghệ an", "nghe an"]
+    },
+    {
+      "code": "HUI",
+      "city": "Huế",
+      "aliases": ["huế", "hue", "thừa thiên huế"]
+    },
+    {
+      "code": "UIH",
+      "city": "Quy Nhơn",
+      "aliases": ["quy nhơn", "quy nhon", "bình định", "binh dinh"]
+    },
+    {
+      "code": "DLI",
+      "city": "Đà Lạt",
+      "aliases": ["đà lạt", "da lat", "lâm đồng", "lam dong", "liên khương", "lien khuong"]
+    },
+    {
+      "code": "BMV",
+      "city": "Buôn Ma Thuột",
+      "aliases": ["buôn ma thuột", "buon ma thuot", "bmt", "đắk lắk", "dak lak"]
+    },
+    {
+      "code": "PXU",
+      "city": "Pleiku",
+      "aliases": ["pleiku", "gia lai"]
+    },
+    {
+      "code": "TBB",
+      "city": "Tuy Hòa",
+      "aliases": ["tuy hòa", "tuy hoa", "phú yên", "phu yen"]
+    },
+    {
+      "code": "VCA",
+      "city": "Cần Thơ",
+      "aliases": ["cần thơ", "can tho"]
+    },
+    {
+      "code": "VKG",
+      "city": "Rạch Giá",
+      "aliases": ["rạch giá", "rach gia"]
+    },
+    {
+      "code": "VCS",
+      "city": "Côn Đảo",
+      "aliases": ["côn đảo", "con dao"]
+    },
+    {
+      "code": "DIN",
+      "city": "Điện Biên Phủ",
+      "aliases": ["điện biên", "dien bien"]
+    },
+    {
+      "code": "VDH",
+      "city": "Đồng Hới",
+      "aliases": ["đồng hới", "dong hoi", "quảng bình", "quang binh"]
+    },
+    {
+      "code": "VCL",
+      "city": "Chu Lai",
+      "aliases": ["chu lai", "quảng nam", "quang nam"]
+    },
+    {
+      "code": "THD",
+      "city": "Thanh Hóa (Thọ Xuân)",
+      "aliases": ["thanh hóa", "thanh hoa", "thọ xuân"]
+    }
+  ]
+}
