@@ -15,11 +15,13 @@ import {
   renderStreamingGroup,
 } from "../chat/grouped-render.ts";
 import {
-  buildDraftWithSkills,
-  parseSkillsFromText,
+  handleMentionKeyDown,
   renderFuncButton,
+  renderMentionMenu,
   renderSkillBadgeBar,
-  renderSkillBadgesInline,
+  sendWithSkills,
+  tryRenderSkillMessage,
+  updateMentionMenu,
 } from "../chat/input-bar-extras.ts";
 import { InputHistory } from "../chat/input-history.ts";
 import { extractTextCached } from "../chat/message-extract.ts";
@@ -34,12 +36,13 @@ import { messageMatchesSearchQuery } from "../chat/search-match.ts";
 import { getOrCreateSessionCacheValue } from "../chat/session-cache.ts";
 import type { ChatSideResult } from "../chat/side-result.ts";
 import {
+  CATEGORY_LABELS,
   SLASH_COMMANDS,
   getSlashCommandCompletions,
+  type SlashCommandCategory,
   type SlashCommandDef,
 } from "../chat/slash-commands.ts";
 import { isSttSupported, startStt, stopStt } from "../chat/speech.ts";
-import { getSkillCompletions } from "../chat/toc-slash-commands.ts";
 import { buildSidebarContent, extractToolCards, extractToolPreview } from "../chat/tool-cards.ts";
 import type { EmbedSandboxMode } from "../embed-sandbox.ts";
 import { icons } from "../icons.ts";
@@ -298,14 +301,9 @@ interface ChatEphemeralState {
   slashMenuMode: "command" | "args";
   slashMenuCommand: SlashCommandDef | null;
   slashMenuArgItems: string[];
-  mentionMenuOpen: boolean;
-  mentionMenuItems: SlashCommandDef[];
-  mentionMenuIndex: number;
   searchOpen: boolean;
   searchQuery: string;
   pinnedExpanded: boolean;
-  funcDropdownOpen: boolean;
-  selectedSkills: string[];
 }
 
 function createChatEphemeralState(): ChatEphemeralState {
@@ -318,14 +316,9 @@ function createChatEphemeralState(): ChatEphemeralState {
     slashMenuMode: "command",
     slashMenuCommand: null,
     slashMenuArgItems: [],
-    mentionMenuOpen: false,
-    mentionMenuItems: [],
-    mentionMenuIndex: 0,
     searchOpen: false,
     searchQuery: "",
     pinnedExpanded: false,
-    funcDropdownOpen: false,
-    selectedSkills: [],
   };
 }
 
@@ -788,21 +781,6 @@ function updateSlashMenu(value: string, requestUpdate: () => void): void {
   requestUpdate();
 }
 
-/** Open/filter the @mention skill picker. Completely independent of slashMenu. */
-function updateMentionMenu(value: string, requestUpdate: () => void): void {
-  const match = value.match(/^@(\S*)$/);
-  if (match) {
-    const items = getSkillCompletions(match[1]);
-    vs.mentionMenuItems = items;
-    vs.mentionMenuOpen = items.length > 0;
-    vs.mentionMenuIndex = 0;
-  } else {
-    vs.mentionMenuOpen = false;
-    vs.mentionMenuItems = [];
-  }
-  requestUpdate();
-}
-
 function selectSlashCommand(
   cmd: SlashCommandDef,
   props: ChatProps,
@@ -825,28 +803,13 @@ function selectSlashCommand(
   resetSlashMenuState();
 
   if (cmd.executeLocal && !cmd.args) {
-    // Local instant commands: execute immediately as before
     props.onDraftChange(`/${cmd.name}`);
     requestUpdate();
     props.onSend();
-  } else if (!cmd.executeLocal) {
-    props.onDraftChange(`/${cmd.name} `);
-    requestUpdate();
   } else {
     props.onDraftChange(`/${cmd.name} `);
     requestUpdate();
   }
-}
-
-/** Select a skill from the @mention picker — adds badge, clears @text. */
-function selectMention(cmd: SlashCommandDef, props: ChatProps, requestUpdate: () => void): void {
-  vs.mentionMenuOpen = false;
-  vs.mentionMenuItems = [];
-  if (!vs.selectedSkills.includes(cmd.name)) {
-    vs.selectedSkills = [...vs.selectedSkills, cmd.name];
-  }
-  props.onDraftChange("");
-  requestUpdate();
 }
 
 function tabCompleteSlashCommand(
@@ -869,14 +832,8 @@ function tabCompleteSlashCommand(
 
   vs.slashMenuOpen = false;
   resetSlashMenuState();
-
-  if (!cmd.executeLocal) {
-    props.onDraftChange(`/${cmd.name} `);
-    requestUpdate();
-  } else {
-    props.onDraftChange(cmd.args ? `/${cmd.name} ` : `/${cmd.name}`);
-    requestUpdate();
-  }
+  props.onDraftChange(cmd.args ? `/${cmd.name} ` : `/${cmd.name}`);
+  requestUpdate();
 }
 
 function selectSlashArg(
@@ -1068,23 +1025,18 @@ function renderSlashMenu(
     return nothing;
   }
 
-  // Arg-picker mode: badges for each argument option
+  // Arg-picker mode: show options for the selected command
   if (vs.slashMenuMode === "args" && vs.slashMenuCommand && vs.slashMenuArgItems.length > 0) {
     return html`
-      <div class="slash-menu slash-menu--badge" role="listbox" aria-label="Command arguments">
-        <div class="slash-menu__badge-label">
-          <span class="slash-menu__badge-label-cmd">/${vs.slashMenuCommand.name}</span>
-          ${vs.slashMenuCommand.description
-            ? html`<span class="slash-menu__badge-label-desc"
-                >— ${vs.slashMenuCommand.description}</span
-              >`
-            : nothing}
-        </div>
-        <div class="slash-menu__badge-grid">
+      <div class="slash-menu" role="listbox" aria-label="Command arguments">
+        <div class="slash-menu-group">
+          <div class="slash-menu-group__label">
+            /${vs.slashMenuCommand.name} ${vs.slashMenuCommand.description}
+          </div>
           ${vs.slashMenuArgItems.map(
             (arg, i) => html`
-              <button
-                class="func-badge ${i === vs.slashMenuIndex ? "func-badge--active" : ""}"
+              <div
+                class="slash-menu-item ${i === vs.slashMenuIndex ? "slash-menu-item--active" : ""}"
                 role="option"
                 aria-selected=${i === vs.slashMenuIndex}
                 @click=${() => selectSlashArg(arg, props, requestUpdate, true)}
@@ -1093,75 +1045,82 @@ function renderSlashMenu(
                   requestUpdate();
                 }}
               >
-                <span class="func-badge__name">${arg}</span>
-              </button>
+                ${vs.slashMenuCommand?.icon
+                  ? html`<span class="slash-menu-icon">${icons[vs.slashMenuCommand.icon]}</span>`
+                  : nothing}
+                <span class="slash-menu-name">${arg}</span>
+                <span class="slash-menu-desc">/${vs.slashMenuCommand?.name} ${arg}</span>
+              </div>
             `,
           )}
+        </div>
+        <div class="slash-menu-footer">
+          <kbd>↑↓</kbd> navigate <kbd>Tab</kbd> fill <kbd>Enter</kbd> run <kbd>Esc</kbd> close
         </div>
       </div>
     `;
   }
 
-  // Command mode: flat badge grid
+  // Command mode: show grouped commands
   if (vs.slashMenuItems.length === 0) {
     return nothing;
   }
 
-  return html`
-    <div class="slash-menu slash-menu--badge" role="listbox" aria-label="Slash commands">
-      <div class="slash-menu__badge-grid">
-        ${vs.slashMenuItems.map(
-          (cmd, i) => html`
-            <button
-              class="func-badge ${i === vs.slashMenuIndex ? "func-badge--active" : ""}"
+  const grouped = new Map<
+    SlashCommandCategory,
+    Array<{ cmd: SlashCommandDef; globalIdx: number }>
+  >();
+  for (let i = 0; i < vs.slashMenuItems.length; i++) {
+    const cmd = vs.slashMenuItems[i];
+    const cat = cmd.category ?? "session";
+    let list = grouped.get(cat);
+    if (!list) {
+      list = [];
+      grouped.set(cat, list);
+    }
+    list.push({ cmd, globalIdx: i });
+  }
+
+  const sections: TemplateResult[] = [];
+  for (const [cat, entries] of grouped) {
+    sections.push(html`
+      <div class="slash-menu-group">
+        <div class="slash-menu-group__label">${CATEGORY_LABELS[cat]}</div>
+        ${entries.map(
+          ({ cmd, globalIdx }) => html`
+            <div
+              class="slash-menu-item ${globalIdx === vs.slashMenuIndex
+                ? "slash-menu-item--active"
+                : ""}"
               role="option"
-              aria-selected=${i === vs.slashMenuIndex}
-              title=${cmd.description}
+              aria-selected=${globalIdx === vs.slashMenuIndex}
               @click=${() => selectSlashCommand(cmd, props, requestUpdate)}
               @mouseenter=${() => {
-                vs.slashMenuIndex = i;
+                vs.slashMenuIndex = globalIdx;
                 requestUpdate();
               }}
             >
-              ${cmd.icon ? html`<span class="func-badge__icon">${icons[cmd.icon]}</span>` : nothing}
-              <span class="func-badge__name">${cmd.name}</span>
-            </button>
+              ${cmd.icon ? html`<span class="slash-menu-icon">${icons[cmd.icon]}</span>` : nothing}
+              <span class="slash-menu-name">/${cmd.name}</span>
+              ${cmd.args ? html`<span class="slash-menu-args">${cmd.args}</span>` : nothing}
+              <span class="slash-menu-desc">${cmd.description}</span>
+              ${cmd.argOptions?.length
+                ? html`<span class="slash-menu-badge">${cmd.argOptions.length} options</span>`
+                : cmd.executeLocal && !cmd.args
+                  ? html` <span class="slash-menu-badge">instant</span> `
+                  : nothing}
+            </div>
           `,
         )}
       </div>
-    </div>
-  `;
-}
-
-/** @mention skill picker — independent of the slash menu. */
-function renderMentionMenu(
-  requestUpdate: () => void,
-  props: ChatProps,
-): TemplateResult | typeof nothing {
-  if (!vs.mentionMenuOpen || vs.mentionMenuItems.length === 0) {
-    return nothing;
+    `);
   }
+
   return html`
-    <div class="slash-menu slash-menu--badge" role="listbox" aria-label="Skills">
-      <div class="slash-menu__badge-grid">
-        ${vs.mentionMenuItems.map(
-          (cmd, i) => html`
-            <button
-              class="func-badge ${i === vs.mentionMenuIndex ? "func-badge--active" : ""}"
-              role="option"
-              aria-selected=${i === vs.mentionMenuIndex}
-              title=${cmd.description}
-              @click=${() => selectMention(cmd, props, requestUpdate)}
-              @mouseenter=${() => {
-                vs.mentionMenuIndex = i;
-                requestUpdate();
-              }}
-            >
-              <span class="func-badge__icon">${icons.zap}</span>
-              <span class="func-badge__name">${cmd.name}</span>
-            </button>
-          `,
-        )}
+    <div class="slash-menu" role="listbox" aria-label="Slash commands">
+      ${sections}
+      <div class="slash-menu-footer">
+        <kbd>↑↓</kbd> navigate <kbd>Tab</kbd> fill <kbd>Enter</kbd> select <kbd>Esc</kbd> close
       </div>
     </div>
   `;
@@ -1307,24 +1266,9 @@ export function renderChat(props: ChatProps) {
               if (deleted.has(item.key)) {
                 return nothing;
               }
-              // TOC: user messages that start with /skill tokens → badge display
-              if (item.role.toLowerCase() === "user" && item.messages.length > 0) {
-                const rawText = extractTextCached(item.messages[0].message) ?? "";
-                const { skills, cleanText } = parseSkillsFromText(rawText);
-                if (skills.length > 0) {
-                  return html`
-                    <div class="chat-group user">
-                      <div class="chat-group-messages">
-                        <div class="chat-bubble fade-in">
-                          ${renderSkillBadgesInline(skills)}
-                          ${cleanText.trim()
-                            ? html`<div class="chat-skill-body">${cleanText.trim()}</div>`
-                            : nothing}
-                        </div>
-                      </div>
-                    </div>
-                  `;
-                }
+              const skillMsg = tryRenderSkillMessage(item);
+              if (skillMsg !== nothing) {
+                return skillMsg;
               }
               return renderMessageGroup(item, {
                 onOpenSidebar: props.onOpenSidebar,
@@ -1363,51 +1307,9 @@ export function renderChat(props: ChatProps) {
     </div>
   `;
 
-  // Build final draft with selected skills prepended, then send.
-  const sendWithSkills = () => {
-    const skills = vs.selectedSkills.slice();
-    vs.selectedSkills = [];
-    if (skills.length > 0) {
-      const fullDraft = buildDraftWithSkills(skills, props.draft);
-      props.onDraftChange(fullDraft);
-      if (fullDraft.trim()) {
-        inputHistory.push(fullDraft);
-      }
-    } else {
-      if (props.draft.trim()) {
-        inputHistory.push(props.draft);
-      }
-    }
-    props.onSend();
-  };
-
   const handleKeyDown = (e: KeyboardEvent) => {
-    // @mention menu navigation
-    if (vs.mentionMenuOpen && vs.mentionMenuItems.length > 0) {
-      const len = vs.mentionMenuItems.length;
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          vs.mentionMenuIndex = (vs.mentionMenuIndex + 1) % len;
-          requestUpdate();
-          return;
-        case "ArrowUp":
-          e.preventDefault();
-          vs.mentionMenuIndex = (vs.mentionMenuIndex - 1 + len) % len;
-          requestUpdate();
-          return;
-        case "Tab":
-        case "Enter":
-          e.preventDefault();
-          selectMention(vs.mentionMenuItems[vs.mentionMenuIndex], props, requestUpdate);
-          return;
-        case "Escape":
-          e.preventDefault();
-          vs.mentionMenuOpen = false;
-          vs.mentionMenuItems = [];
-          requestUpdate();
-          return;
-      }
+    if (handleMentionKeyDown(e, props, requestUpdate)) {
+      return;
     }
 
     // Slash menu navigation — arg mode
@@ -1517,7 +1419,7 @@ export function renderChat(props: ChatProps) {
       }
       e.preventDefault();
       if (canCompose) {
-        sendWithSkills();
+        sendWithSkills(props, inputHistory);
       }
     }
   };
@@ -1650,7 +1552,7 @@ export function renderChat(props: ChatProps) {
           @change=${(e: Event) => handleFileSelect(e, props)}
         />
 
-        ${renderSkillBadgeBar(vs, requestUpdate)}
+        ${renderSkillBadgeBar(requestUpdate)}
         ${vs.sttRecording && vs.sttInterimText
           ? html`<div class="agent-chat__stt-interim">${vs.sttInterimText}</div>`
           : nothing}
@@ -1669,7 +1571,7 @@ export function renderChat(props: ChatProps) {
 
         <div class="agent-chat__toolbar">
           <div class="agent-chat__toolbar-left">
-            ${renderFuncButton(vs, requestUpdate, props)}
+            ${renderFuncButton(requestUpdate, props)}
             <button
               class="agent-chat__input-btn"
               @click=${() => {
@@ -1776,7 +1678,7 @@ export function renderChat(props: ChatProps) {
               : html`
                   <button
                     class="chat-send-btn"
-                    @click=${sendWithSkills}
+                    @click=${() => sendWithSkills(props, inputHistory)}
                     ?disabled=${!props.connected || props.sending}
                     title=${isBusy ? "Queue" : "Send"}
                     aria-label=${isBusy ? "Queue message" : "Send message"}
