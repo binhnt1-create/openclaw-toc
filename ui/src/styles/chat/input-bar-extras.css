@@ -1,0 +1,282 @@
+/* ---- func-dropdown (custom: input bar extras) ---- */
+.func-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Skill picker dropdown — list view */
+.func-dropdown__menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  min-width: 480px;
+  max-width: 600px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--popover);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 30;
+  padding: 6px;
+  scrollbar-width: thin;
+}
+
+.func-dropdown__header {
+  padding: 8px 12px 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.func-dropdown__empty {
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Each skill row in the dropdown */
+.func-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background var(--duration-fast) ease;
+}
+
+.func-skill-row:hover {
+  background: var(--bg-hover);
+}
+
+.func-skill-row--selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.func-skill-row--selected:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.func-skill-row__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.func-skill-row__icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.func-skill-row__body {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.func-skill-row__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.func-skill-row__desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.func-skill-row__tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- Slash menu badge mode override ---- */
+.slash-menu--badge {
+  padding: 10px;
+  max-height: 220px;
+}
+
+.slash-menu__badge-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slash-menu__badge-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 2px 8px;
+  font-size: 0.75rem;
+}
+
+.slash-menu__badge-label-cmd {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.slash-menu__badge-label-desc {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Selected skill bar (inside input area, above textarea) ---- */
+.func-selected-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 2px 4px;
+}
+
+/* Selected badge pill */
+.func-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.func-badge__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.func-badge__icon svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.func-badge__name {
+  line-height: 1;
+}
+
+.func-badge__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  border-radius: 50%;
+  padding: 0;
+  flex-shrink: 0;
+  transition:
+    opacity var(--duration-fast) ease,
+    background var(--duration-fast) ease;
+}
+
+.func-badge__remove:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.func-badge__remove svg {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- Skill header inside sent chat bubble ---- */
+.func-skill-header-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.func-skill-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+}
+
+.func-skill-header__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.func-skill-header__icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.func-skill-header__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Text body below skill header in chat bubble */
+.chat-skill-body {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
