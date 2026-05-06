@@ -22,7 +22,7 @@ if [ "$#" -lt 2 ]; then
 fi
 
 force_delete_lock=false
-fast_commit=false
+fast_commit=true
 while [[ "${1:-}" == --* ]]; do
   case "${1:-}" in
     --force)

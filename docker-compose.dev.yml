@@ -1,0 +1,152 @@
+# Dev compose: live-reload OpenClaw gateway for skill development.
+#
+# Standalone file — do NOT combine with docker-compose.yml. Run directly:
+#
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Skill dev loop:
+#   1. Drop your skill at ./skills/<id>/ (SKILL.md + scripts).
+#   2. Edit source under src/ or skills/ — gateway:watch rebuilds + restarts.
+#   3. Connect: ws://localhost:18789  token=devtoken
+#
+# State (config, installed skills, credentials) lives in the named volume
+# `openclaw-dev-state` so host ~/.openclaw stays untouched. Reset with:
+#   docker compose -f docker-compose.dev.yml down -v
+
+services:
+  openclaw-gateway:
+    build:
+      context: .
+      # Stage `build` has Bun, pnpm, full source tree, and a completed
+      # `pnpm install` — everything `pnpm gateway:watch` needs. The runtime
+      # stage would prune devDeps and strip Bun, so it can't watch/rebuild.
+      target: build
+      args:
+        OPENCLAW_EXTENSIONS: ""
+    image: openclaw:dev
+    env_file:
+      - .env
+    environment:
+      HOME: /home/node
+      NODE_ENV: development
+      TERM: xterm-256color
+      TZ: UTC
+      OPENCLAW_WATCH_MODE: "1"
+      OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: "1"
+      # Anchor the "workspace root" for plugins that read openclaw.json /
+      # bundle files via process.cwd() fallback (e.g. zalo-sales-commands
+      # and any plugin using the workspace-files.ts pattern). Default cwd
+      # would be /app (gateway source dir), where openclaw.json does not
+      # live — pointing at the state dir aligns with the registered agent
+      # workspace path ($STATE_DIR/workspace/agent-<id>/).
+      OPENCLAW_DEFAULT_MODEL_ID: "openai/gpt-5-mini"
+      OPENCLAW_WORKSPACE: /home/node/.openclaw
+    volumes:
+      # Bind source for live-reload.
+      - .:/app
+      # Shadow .git with tmpfs so git safe.directory ownership errors do not
+      # fire when the container runs as root over a host-owned bind mount.
+      # run-node.mjs sees no git repo → HEAD stays null → stale detection
+      # falls back to mtime-only, which is sufficient for the dev loop.
+      - type: tmpfs
+        target: /app/.git
+      # Anonymous/named volumes shadow the bind so the image-installed
+      # node_modules/dist survive (host copies may be wrong arch/missing).
+      - openclaw-dev-node-modules:/app/node_modules
+      - openclaw-dev-dist:/app/dist
+      # Gateway runtime state (skills, config, auth). Isolated from host.
+      - openclaw-dev-state:/home/node/.openclaw
+      # openzca profile + credentials (Zalo auth). Persist across recreate.
+      - openclaw-dev-openzca:/home/node/.openzca
+      # Global npm packages (e.g. openzca). Persist across recreate so we
+      # don't need to `npm i -g openzca` after every container recreate.
+      - openclaw-dev-npm-global:/usr/local/lib/node_modules
+    configs:
+      # `oc` = shorthand for the dev CLI. Mounted at container start so it is
+      # available in any shell (e.g. `docker compose exec openclaw-gateway oc
+      # plugins list`). Forwards to the same seam as `pnpm openclaw`.
+      - source: oc-cli
+        target: /usr/local/bin/oc
+        mode: 0755
+      # `openclaw` = same dispatcher mounted under the canonical name.
+      # Skills, docs, and AI tool calls assume `openclaw` in PATH; without
+      # this, agent exec calls fail with `sh: openclaw: not found`.
+      - source: oc-cli
+        target: /usr/local/bin/openclaw
+        mode: 0755
+    ports:
+      - "18789:18789"
+      - "18790:18790"
+    init: true
+    restart: unless-stopped
+    # Run config set before gateway:watch so gateway.controlUi.allowedOrigins
+    # always includes the Vite dev server origin (port from OPENCLAW_UI_PORT).
+    # `exec` replaces the shell so init/signals still reach the node process.
+    # `--bind lan` = 0.0.0.0 so the host can reach the gateway via the port.
+    entrypoint: ["/bin/sh", "-c"]
+    # command must be a YAML array with a single block-scalar element so Compose
+    # does NOT word-split it. A string command would be split on whitespace before
+    # reaching sh -c, making it impossible to pass a multi-word shell script.
+    # Compose substitutes ${VAR} in block scalars; the shell sees single-quoted
+    # JSON so it treats the value as a literal string, not a glob or expansion.
+    command:
+      - |
+        node scripts/run-node.mjs config set gateway.controlUi.allowedOrigins \
+          '["http://localhost:${OPENCLAW_UI_PORT:-5173}","http://localhost:18789"]' 2>/dev/null || true
+        node scripts/run-node.mjs config set skills.load.extraDirs '["/app/skills"]' 2>/dev/null || true
+        exec node scripts/watch-node.mjs gateway --bind lan --port 18789 --allow-unconfigured
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      # First tsdown compile cold can take 60-90s; give the healthcheck room.
+      start_period: 180s
+
+  openclaw-ui-dev:
+    build:
+      context: .
+      target: build
+      args:
+        OPENCLAW_EXTENSIONS: ""
+    image: openclaw:dev
+    environment:
+      HOME: /home/node
+      NODE_ENV: development
+      # Proxy /__openclaw__/ and /media/ HTTP routes to the gateway container.
+      OPENCLAW_DEV_GATEWAY_HOST: openclaw-gateway
+    volumes:
+      # UI deps are pure JS — use host node_modules directly via bind mount so
+      # packages installed on the host (e.g. markdown-it-task-lists) resolve
+      # without needing the gateway's arch-specific named volume.
+      - .:/app
+    ports:
+      - "${OPENCLAW_UI_PORT:-5173}:${OPENCLAW_UI_PORT:-5173}"
+    init: true
+    depends_on:
+      - openclaw-gateway
+    working_dir: /app/ui
+    # Call vite binary directly — avoids Corepack trying to download pnpm (no network in container).
+    command:
+      - node
+      - /app/node_modules/.bin/vite
+      - --host
+      - --port
+      - "${OPENCLAW_UI_PORT:-5173}"
+
+volumes:
+  openclaw-dev-node-modules:
+  openclaw-dev-dist:
+  openclaw-dev-state:
+  openclaw-dev-openzca:
+  openclaw-dev-npm-global:
+
+configs:
+  oc-cli:
+    content: |
+      #!/bin/sh
+      cd /app && exec node scripts/run-node.mjs "$@"

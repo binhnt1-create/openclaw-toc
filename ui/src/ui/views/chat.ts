@@ -15,6 +15,15 @@ import {
   renderReadingIndicatorGroup,
   renderStreamingGroup,
 } from "../chat/grouped-render.ts";
+import {
+  handleMentionKeyDown,
+  renderFuncButton,
+  renderMentionMenu,
+  renderSkillBadgeBar,
+  sendWithSkills,
+  tryRenderSkillMessage,
+  updateMentionMenu,
+} from "../chat/input-bar-extras.ts";
 import { InputHistory } from "../chat/input-history.ts";
 import { PinnedMessages } from "../chat/pinned-messages.ts";
 import { getPinnedMessageSummary } from "../chat/pinned-summary.ts";
@@ -881,6 +890,10 @@ export function renderChat(props: ChatProps) {
               if (deleted.has(item.key)) {
                 return nothing;
               }
+              const skillMsg = tryRenderSkillMessage(item);
+              if (skillMsg !== nothing) {
+                return skillMsg;
+              }
               return renderMessageGroup(item, {
                 onOpenSidebar: props.onOpenSidebar,
                 showReasoning,
@@ -919,6 +932,10 @@ export function renderChat(props: ChatProps) {
   `;
 
   const handleKeyDown = (e: KeyboardEvent) => {
+    if (handleMentionKeyDown(e, props, requestUpdate)) {
+      return;
+    }
+
     // Slash menu navigation — arg mode
     if (vs.slashMenuOpen && vs.slashMenuMode === "args" && vs.slashMenuArgItems.length > 0) {
       const len = vs.slashMenuArgItems.length;
@@ -1026,10 +1043,7 @@ export function renderChat(props: ChatProps) {
       }
       e.preventDefault();
       if (canCompose) {
-        if (props.draft.trim()) {
-          inputHistory.push(props.draft);
-        }
-        props.onSend();
+        sendWithSkills(props, inputHistory);
       }
     }
   };
@@ -1038,6 +1052,7 @@ export function renderChat(props: ChatProps) {
     const target = e.target as HTMLTextAreaElement;
     adjustTextareaHeight(target);
     updateSlashMenu(target.value, requestUpdate);
+    updateMentionMenu(target.value, requestUpdate);
     inputHistory.reset();
     props.onDraftChange(target.value);
   };
@@ -1150,7 +1165,8 @@ export function renderChat(props: ChatProps) {
 
       <!-- Input bar -->
       <div class="agent-chat__input">
-        ${renderSlashMenu(requestUpdate, props)} ${renderAttachmentPreview(props)}
+        ${renderMentionMenu(requestUpdate, props)} ${renderSlashMenu(requestUpdate, props)}
+        ${renderAttachmentPreview(props)}
 
         <input
           type="file"
@@ -1160,6 +1176,7 @@ export function renderChat(props: ChatProps) {
           @change=${(e: Event) => handleFileSelect(e, props)}
         />
 
+        ${renderSkillBadgeBar(requestUpdate)}
         ${vs.sttRecording && vs.sttInterimText
           ? html`<div class="agent-chat__stt-interim">${vs.sttInterimText}</div>`
           : nothing}
@@ -1178,6 +1195,7 @@ export function renderChat(props: ChatProps) {
 
         <div class="agent-chat__toolbar">
           <div class="agent-chat__toolbar-left">
+            ${renderFuncButton(requestUpdate, props)}
             <button
               class="agent-chat__input-btn"
               @click=${() => {
@@ -1256,7 +1274,7 @@ export function renderChat(props: ChatProps) {
             onAbort: props.onAbort,
             onExport: () => exportMarkdown(props),
             onNewSession: props.onNewSession,
-            onSend: props.onSend,
+            onSend: () => sendWithSkills(props, inputHistory),
             onStoreDraft: (draft) => inputHistory.push(draft),
           })}
         </div>
