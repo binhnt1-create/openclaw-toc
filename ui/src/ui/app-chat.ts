@@ -4,6 +4,7 @@ import { resetToolStream } from "./app-tool-stream.ts";
 import type { ChatSideResult } from "./chat/side-result.ts";
 import { executeSlashCommand } from "./chat/slash-command-executor.ts";
 import { parseSlashCommand, refreshSlashCommands } from "./chat/slash-commands.ts";
+import { refreshTocSkillCommands } from "./chat/toc-slash-commands.ts";
 import {
   abortChatRun,
   loadChatHistory,
@@ -483,10 +484,11 @@ async function refreshChatModels(host: ChatHost) {
 }
 
 async function refreshChatCommands(host: ChatHost) {
-  await refreshSlashCommands({
-    client: host.client,
-    agentId: resolveAgentIdForSession(host),
-  });
+  const agentId = resolveAgentIdForSession(host);
+  await Promise.all([
+    refreshSlashCommands({ client: host.client, agentId }),
+    refreshTocSkillCommands({ client: host.client, agentId }),
+  ]);
 }
 
 export const flushChatQueueForEvent = flushChatQueue;

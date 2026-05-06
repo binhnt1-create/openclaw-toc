@@ -306,6 +306,12 @@ export async function sendChatMessage(
   }
 
   const now = Date.now();
+  console.log("[TOC] ▶ send", {
+    session: state.sessionKey,
+    message: msg,
+    attachments: hasAttachments ? attachments?.length : 0,
+    ts: new Date(now).toISOString(),
+  });
 
   // Build user message content blocks
   const contentBlocks: Array<{ type: string; text?: string; source?: unknown }> = [];
@@ -427,13 +433,29 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
   if (payload.state === "delta") {
     const next = extractText(payload.message);
     if (typeof next === "string" && !isSilentReplyStream(next)) {
+      // Log when streaming starts (first delta)
+      if (state.chatStream === "") {
+        console.log("[TOC] ◀ stream start", { session: state.sessionKey, runId: payload.runId });
+      }
       state.chatStream = next;
     }
   } else if (payload.state === "final") {
     const finalMessage = normalizeFinalAssistantMessage(payload.message);
     if (finalMessage && !isAssistantSilentReply(finalMessage)) {
+      console.log("[TOC] ◀ response final", {
+        session: state.sessionKey,
+        runId: payload.runId,
+        message: finalMessage,
+        ts: new Date().toISOString(),
+      });
       state.chatMessages = [...state.chatMessages, finalMessage];
     } else if (state.chatStream?.trim() && !isSilentReplyStream(state.chatStream)) {
+      console.log("[TOC] ◀ response final (from stream)", {
+        session: state.sessionKey,
+        runId: payload.runId,
+        text: state.chatStream,
+        ts: new Date().toISOString(),
+      });
       state.chatMessages = [
         ...state.chatMessages,
         {
@@ -467,6 +489,12 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
     state.chatRunId = null;
     state.chatStreamStartedAt = null;
   } else if (payload.state === "error") {
+    console.error("[TOC] ✖ response error", {
+      session: state.sessionKey,
+      runId: payload.runId,
+      error: payload.errorMessage,
+      ts: new Date().toISOString(),
+    });
     state.chatStream = null;
     state.chatRunId = null;
     state.chatStreamStartedAt = null;

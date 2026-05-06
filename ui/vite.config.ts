@@ -38,6 +38,20 @@ export default defineConfig(() => {
       host: true,
       port: 5173,
       strictPort: true,
+      proxy: process.env.OPENCLAW_DEV_GATEWAY_HOST
+        ? {
+            // Proxy gateway HTTP routes (media, canvas assets, etc.) to the running gateway.
+            // WebSocket connects directly to port 18789 via Vite dev page detection in storage.ts.
+            "/__openclaw__": {
+              target: `http://${process.env.OPENCLAW_DEV_GATEWAY_HOST}:18789`,
+              changeOrigin: true,
+            },
+            "/media": {
+              target: `http://${process.env.OPENCLAW_DEV_GATEWAY_HOST}:18789`,
+              changeOrigin: true,
+            },
+          }
+        : undefined,
     },
     plugins: [
       {
