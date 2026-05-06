@@ -1,6 +1,5 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { icons } from "../icons.ts";
-import type { ChatProps } from "./chat-props.ts";
 import { SLASH_COMMANDS } from "./slash-commands.ts";
 
 export interface FuncDropdownState {
@@ -121,7 +120,7 @@ export function renderSkillBadgesInline(skills: string[]): TemplateResult | type
 export function renderFuncButton(
   vs: FuncDropdownState,
   requestUpdate: () => void,
-  props: ChatProps,
+  props: { connected: boolean },
 ): TemplateResult {
   const close = () => {
     vs.funcDropdownOpen = false;
