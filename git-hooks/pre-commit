@@ -60,6 +60,7 @@ fi
 
 git add -- "${files[@]}"
 
+FAST_COMMIT=1
 # This hook is also exercised from lightweight temp repos in tests, where the
 # staged-file safety behavior matters but the full OpenClaw workspace does not
 # exist. Only run the repo-wide validation gate inside a real checkout.
